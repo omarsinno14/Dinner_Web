@@ -16,8 +16,7 @@ type Position = {
 
 const NO_BUTTON_MIN_DISTANCE = 140;
 const NO_BUTTON_PADDING = 24;
-const NO_BUTTON_FIRST_THRESHOLD_CM = 0.5;
-const NO_BUTTON_REPEAT_THRESHOLD_CM = 1;
+const NO_BUTTON_PROXIMITY_THRESHOLD_CM = 1;
 const BACKGROUND_CLIP_COUNT = 14;
 const FLAG_COUNT = 2;
 
@@ -196,10 +195,7 @@ export default function Home() {
       if (!button) return;
 
       const buttonRect = button.getBoundingClientRect();
-      const thresholdCm = noHasMovedRef.current
-        ? NO_BUTTON_REPEAT_THRESHOLD_CM
-        : NO_BUTTON_FIRST_THRESHOLD_CM;
-      const thresholdPx = cmToPx(thresholdCm);
+      const thresholdPx = cmToPx(NO_BUTTON_PROXIMITY_THRESHOLD_CM);
       const distanceToButton = distanceToRect(
         event.clientX,
         event.clientY,
@@ -214,7 +210,6 @@ export default function Home() {
         buttonRect
       );
 
-      noHasMovedRef.current = true;
       setNoPosition(nextPosition);
     };
 
