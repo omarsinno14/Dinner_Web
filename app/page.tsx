@@ -47,6 +47,7 @@ function notifyVisit() {
 export default function Home() {
   const noButtonRef = useRef<HTMLButtonElement | null>(null);
   const yesButtonRef = useRef<HTMLButtonElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [noPosition, setNoPosition] = useState<Position>({ x: 0, y: 0 });
   const [noReady, setNoReady] = useState(false);
@@ -77,16 +78,15 @@ export default function Home() {
   const getRandomPositionAwayFromCursor = (
     cursorX: number,
     cursorY: number,
-    rect: DOMRect
+    rect: DOMRect,
+    containerRect: DOMRect
   ) => {
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
     const maxX = Math.max(
-      viewportWidth - rect.width - NO_BUTTON_PADDING,
+      containerRect.width - rect.width - NO_BUTTON_PADDING,
       NO_BUTTON_PADDING
     );
     const maxY = Math.max(
-      viewportHeight - rect.height - NO_BUTTON_PADDING,
+      containerRect.height - rect.height - NO_BUTTON_PADDING,
       NO_BUTTON_PADDING
     );
 
@@ -109,8 +109,10 @@ export default function Home() {
       }
     }
 
-    const deltaX = rect.left + rect.width / 2 - cursorX;
-    const deltaY = rect.top + rect.height / 2 - cursorY;
+    const buttonCenterX = rect.left - containerRect.left + rect.width / 2;
+    const buttonCenterY = rect.top - containerRect.top + rect.height / 2;
+    const deltaX = buttonCenterX - cursorX;
+    const deltaY = buttonCenterY - cursorY;
     const distance = Math.hypot(deltaX, deltaY) || 1;
     const normalizedX = deltaX / distance;
     const normalizedY = deltaY / distance;
@@ -168,18 +170,18 @@ export default function Home() {
     const setInitialPosition = () => {
       const button = noButtonRef.current;
       const yesButton = yesButtonRef.current;
-      if (!button || !yesButton) return;
+      const card = cardRef.current;
+      if (!button || !yesButton || !card) return;
 
       const buttonRect = button.getBoundingClientRect();
       const yesRect = yesButton.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+      const cardRect = card.getBoundingClientRect();
       const maxX = Math.max(
-        viewportWidth - buttonRect.width - NO_BUTTON_PADDING,
+        cardRect.width - buttonRect.width - NO_BUTTON_PADDING,
         NO_BUTTON_PADDING
       );
       const maxY = Math.max(
-        viewportHeight - buttonRect.height - NO_BUTTON_PADDING,
+        cardRect.height - buttonRect.height - NO_BUTTON_PADDING,
         NO_BUTTON_PADDING
       );
 
@@ -188,10 +190,15 @@ export default function Home() {
           maxX,
           Math.max(
             NO_BUTTON_PADDING,
-            yesRect.left + (yesRect.width - buttonRect.width) / 2
+            yesRect.left -
+              cardRect.left +
+              (yesRect.width - buttonRect.width) / 2
           )
         ),
-        y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.bottom + 16))
+        y: Math.min(
+          maxY,
+          Math.max(NO_BUTTON_PADDING, yesRect.bottom - cardRect.top + 16)
+        )
       });
       setNoReady(true);
     };
@@ -212,6 +219,9 @@ export default function Home() {
       if (yesButtonRef.current) {
         resizeObserver.observe(yesButtonRef.current);
       }
+      if (cardRef.current) {
+        resizeObserver.observe(cardRef.current);
+      }
     }
 
     return () => {
@@ -224,9 +234,11 @@ export default function Home() {
     const handlePointerMove = (event: PointerEvent) => {
       if (confirmed || !noReady) return;
       const button = noButtonRef.current;
-      if (!button) return;
+      const card = cardRef.current;
+      if (!button || !card) return;
 
       const buttonRect = button.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
       const thresholdCm = noHasMovedRef.current
         ? NO_BUTTON_REPEAT_THRESHOLD_CM
         : NO_BUTTON_FIRST_THRESHOLD_CM;
@@ -240,9 +252,10 @@ export default function Home() {
       if (distanceToButton > thresholdPx) return;
 
       const nextPosition = getRandomPositionAwayFromCursor(
-        event.clientX,
-        event.clientY,
-        buttonRect
+        event.clientX - cardRect.left,
+        event.clientY - cardRect.top,
+        buttonRect,
+        cardRect
       );
 
       noHasMovedRef.current = true;
@@ -324,6 +337,7 @@ export default function Home() {
       )}
 
       <div
+        ref={cardRef}
         className={`relative w-full max-w-3xl space-y-10 rounded-[32px] border border-pink-300/40 bg-pink-950/40 p-8 shadow-[0_20px_60px_-30px_rgba(244,114,182,0.85)] backdrop-blur transition-opacity duration-300 ${
           disclaimerOpen ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
@@ -359,9 +373,7 @@ export default function Home() {
 
         <section className="space-y-4">
           {!confirmed && (
-            <div
-              className="relative flex min-h-[140px] items-center justify-center gap-6"
-            >
+            <div className="flex min-h-[140px] items-center justify-center gap-6">
               <button
                 type="button"
                 onClick={handleYesClick}
@@ -374,7 +386,7 @@ export default function Home() {
                 ref={noButtonRef}
                 type="button"
                 onClick={handleNoClick}
-                className={`fixed z-20 inline-flex items-center justify-center rounded-full border border-pink-200/60 bg-pink-950/80 px-10 py-4 text-base font-semibold text-pink-100 shadow-[0_12px_30px_-18px_rgba(244,114,182,0.85)] transition-transform duration-200 ease-out hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200 ${
+                className={`absolute z-20 inline-flex items-center justify-center rounded-full border border-pink-200/60 bg-pink-950/80 px-10 py-4 text-base font-semibold text-pink-100 shadow-[0_12px_30px_-18px_rgba(244,114,182,0.85)] transition-transform duration-200 ease-out hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200 ${
                   noReady ? "opacity-100" : "opacity-0"
                 }`}
                 style={{
