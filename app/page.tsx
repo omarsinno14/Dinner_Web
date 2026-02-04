@@ -14,8 +14,11 @@ type Position = {
   y: number;
 };
 
-const NO_BUTTON_THRESHOLD = 20;
+const NO_BUTTON_MIN_DISTANCE = 140;
 const NO_BUTTON_PADDING = 24;
+const NO_BUTTON_FIRST_THRESHOLD_CM = 0.5;
+const NO_BUTTON_REPEAT_THRESHOLD_CM = 1;
+const NO_BUTTON_EDGE_BUFFER = 8;
 const BACKGROUND_CLIP_COUNT = 14;
 const FLAG_COUNT = 2;
 
@@ -52,11 +55,85 @@ export default function Home() {
   const [suggestion, setSuggestion] = useState<Suggestion>(initialSuggestion);
   const [suggestionMessage, setSuggestionMessage] = useState("");
   const [suggestionError, setSuggestionError] = useState("");
+  const noHasMovedRef = useRef(false);
 
   const detailItems = useMemo(
     () => ["Thursday, February 12", "8:00 PM", "Moreira’s — Griffintown"],
     []
   );
+
+  const cmToPx = (cm: number) => (cm / 2.54) * 96;
+
+  const distanceToRect = (
+    x: number,
+    y: number,
+    rect: DOMRect
+  ) => {
+    const dx = Math.max(rect.left - x, 0, x - rect.right);
+    const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+    return Math.hypot(dx, dy);
+  };
+
+  const getRandomPositionAwayFromCursor = (
+    cursorX: number,
+    cursorY: number,
+    rect: DOMRect
+  ) => {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const maxX = Math.max(
+      viewportWidth - rect.width - NO_BUTTON_PADDING,
+      NO_BUTTON_PADDING
+    );
+    const maxY = Math.max(
+      viewportHeight - rect.height - NO_BUTTON_PADDING,
+      NO_BUTTON_PADDING
+    );
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const randomX =
+        NO_BUTTON_PADDING + Math.random() * (maxX - NO_BUTTON_PADDING);
+      const randomY =
+        NO_BUTTON_PADDING + Math.random() * (maxY - NO_BUTTON_PADDING);
+      const hitsEdge =
+        randomX <= NO_BUTTON_PADDING + NO_BUTTON_EDGE_BUFFER ||
+        randomX >= maxX - NO_BUTTON_EDGE_BUFFER ||
+        randomY <= NO_BUTTON_PADDING + NO_BUTTON_EDGE_BUFFER ||
+        randomY >= maxY - NO_BUTTON_EDGE_BUFFER;
+      const centerX = randomX + rect.width / 2;
+      const centerY = randomY + rect.height / 2;
+      const distance = Math.hypot(centerX - cursorX, centerY - cursorY);
+
+      if (!hitsEdge && distance >= NO_BUTTON_MIN_DISTANCE) {
+        return { x: randomX, y: randomY };
+      }
+    }
+
+    const deltaX = rect.left + rect.width / 2 - cursorX;
+    const deltaY = rect.top + rect.height / 2 - cursorY;
+    const distance = Math.hypot(deltaX, deltaY) || 1;
+    const normalizedX = deltaX / distance;
+    const normalizedY = deltaY / distance;
+    const targetCenterX = cursorX + normalizedX * NO_BUTTON_MIN_DISTANCE;
+    const targetCenterY = cursorY + normalizedY * NO_BUTTON_MIN_DISTANCE;
+
+    return {
+      x: Math.min(
+        maxX - NO_BUTTON_EDGE_BUFFER,
+        Math.max(
+          NO_BUTTON_PADDING + NO_BUTTON_EDGE_BUFFER,
+          targetCenterX - rect.width / 2
+        )
+      ),
+      y: Math.min(
+        maxY - NO_BUTTON_EDGE_BUFFER,
+        Math.max(
+          NO_BUTTON_PADDING + NO_BUTTON_EDGE_BUFFER,
+          targetCenterY - rect.height / 2
+        )
+      )
+    };
+  };
 
   const floatingClips = useMemo(
     () =>
@@ -107,7 +184,13 @@ export default function Home() {
       );
 
       setNoPosition({
-        x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, yesRect.left)),
+        x: Math.min(
+          maxX,
+          Math.max(
+            NO_BUTTON_PADDING,
+            yesRect.left + (yesRect.width - buttonRect.width) / 2
+          )
+        ),
         y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.bottom + 16))
       });
       setNoReady(true);
@@ -115,7 +198,26 @@ export default function Home() {
 
     setInitialPosition();
     window.addEventListener("resize", setInitialPosition);
-    return () => window.removeEventListener("resize", setInitialPosition);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            setInitialPosition();
+          });
+
+    if (resizeObserver) {
+      if (noButtonRef.current) {
+        resizeObserver.observe(noButtonRef.current);
+      }
+      if (yesButtonRef.current) {
+        resizeObserver.observe(yesButtonRef.current);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("resize", setInitialPosition);
+      resizeObserver?.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -125,29 +227,26 @@ export default function Home() {
       if (!button) return;
 
       const buttonRect = button.getBoundingClientRect();
-      const centerX = buttonRect.left + buttonRect.width / 2;
-      const centerY = buttonRect.top + buttonRect.height / 2;
-      const distance = Math.hypot(event.clientX - centerX, event.clientY - centerY);
-
-      if (distance > NO_BUTTON_THRESHOLD) return;
-
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const maxX = Math.max(
-        viewportWidth - buttonRect.width - NO_BUTTON_PADDING,
-        NO_BUTTON_PADDING
-      );
-      const maxY = Math.max(
-        viewportHeight - buttonRect.height - NO_BUTTON_PADDING,
-        NO_BUTTON_PADDING
+      const thresholdCm = noHasMovedRef.current
+        ? NO_BUTTON_REPEAT_THRESHOLD_CM
+        : NO_BUTTON_FIRST_THRESHOLD_CM;
+      const thresholdPx = cmToPx(thresholdCm);
+      const distanceToButton = distanceToRect(
+        event.clientX,
+        event.clientY,
+        buttonRect
       );
 
-      const nextX =
-        NO_BUTTON_PADDING + Math.random() * (maxX - NO_BUTTON_PADDING);
-      const nextY =
-        NO_BUTTON_PADDING + Math.random() * (maxY - NO_BUTTON_PADDING);
+      if (distanceToButton > thresholdPx) return;
 
-      setNoPosition({ x: nextX, y: nextY });
+      const nextPosition = getRandomPositionAwayFromCursor(
+        event.clientX,
+        event.clientY,
+        buttonRect
+      );
+
+      noHasMovedRef.current = true;
+      setNoPosition(nextPosition);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -405,7 +504,7 @@ export default function Home() {
       )}
 
       {disclaimerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-pink-950 px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-pink-950 px-4 pt-16">
           <div className="max-w-xl space-y-4 rounded-3xl border border-pink-300/40 bg-pink-900/70 p-8 text-center shadow-[0_30px_80px_-40px_rgba(244,114,182,0.9)]">
             <p className="text-lg font-semibold text-pink-100">
               Disclaimer
