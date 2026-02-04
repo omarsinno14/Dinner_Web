@@ -14,7 +14,7 @@ type Position = {
   y: number;
 };
 
-const NO_BUTTON_THRESHOLD = 20;
+const NO_BUTTON_MIN_DISTANCE = 140;
 const NO_BUTTON_PADDING = 24;
 const BACKGROUND_CLIP_COUNT = 14;
 const FLAG_COUNT = 2;
@@ -107,7 +107,13 @@ export default function Home() {
       );
 
       setNoPosition({
-        x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, yesRect.left)),
+        x: Math.min(
+          maxX,
+          Math.max(
+            NO_BUTTON_PADDING,
+            yesRect.left + (yesRect.width - buttonRect.width) / 2
+          )
+        ),
         y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.bottom + 16))
       });
       setNoReady(true);
@@ -127,9 +133,9 @@ export default function Home() {
       const buttonRect = button.getBoundingClientRect();
       const centerX = buttonRect.left + buttonRect.width / 2;
       const centerY = buttonRect.top + buttonRect.height / 2;
-      const distance = Math.hypot(event.clientX - centerX, event.clientY - centerY);
-
-      if (distance > NO_BUTTON_THRESHOLD) return;
+      const deltaX = centerX - event.clientX;
+      const deltaY = centerY - event.clientY;
+      const distance = Math.hypot(deltaX, deltaY) || 1;
 
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
@@ -142,10 +148,18 @@ export default function Home() {
         NO_BUTTON_PADDING
       );
 
-      const nextX =
-        NO_BUTTON_PADDING + Math.random() * (maxX - NO_BUTTON_PADDING);
-      const nextY =
-        NO_BUTTON_PADDING + Math.random() * (maxY - NO_BUTTON_PADDING);
+      const normalizedX = deltaX / distance;
+      const normalizedY = deltaY / distance;
+      const targetCenterX = event.clientX + normalizedX * NO_BUTTON_MIN_DISTANCE;
+      const targetCenterY = event.clientY + normalizedY * NO_BUTTON_MIN_DISTANCE;
+      const nextX = Math.min(
+        maxX,
+        Math.max(NO_BUTTON_PADDING, targetCenterX - buttonRect.width / 2)
+      );
+      const nextY = Math.min(
+        maxY,
+        Math.max(NO_BUTTON_PADDING, targetCenterY - buttonRect.height / 2)
+      );
 
       setNoPosition({ x: nextX, y: nextY });
     };
