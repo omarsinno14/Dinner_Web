@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type Suggestion = {
   date: string;
@@ -14,8 +14,10 @@ type Position = {
   y: number;
 };
 
-const NO_BUTTON_THRESHOLD = 120;
-const NO_BUTTON_PADDING = 16;
+const NO_BUTTON_THRESHOLD = 20;
+const NO_BUTTON_PADDING = 24;
+const BACKGROUND_CLIP_COUNT = 14;
+const FLAG_COUNT = 2;
 
 const initialSuggestion: Suggestion = {
   date: "",
@@ -40,11 +42,13 @@ function notifyVisit() {
 }
 
 export default function Home() {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const noButtonRef = useRef<HTMLButtonElement | null>(null);
+  const yesButtonRef = useRef<HTMLButtonElement | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [noPosition, setNoPosition] = useState<Position>({ x: 0, y: 0 });
+  const [noReady, setNoReady] = useState(false);
   const [noModalOpen, setNoModalOpen] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(true);
   const [suggestion, setSuggestion] = useState<Suggestion>(initialSuggestion);
   const [suggestionMessage, setSuggestionMessage] = useState("");
   const [suggestionError, setSuggestionError] = useState("");
@@ -54,31 +58,59 @@ export default function Home() {
     []
   );
 
+  const floatingClips = useMemo(
+    () =>
+      Array.from({ length: BACKGROUND_CLIP_COUNT }, (_, index) => ({
+        id: `clip-${index}`,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: 18 + Math.random() * 12,
+        delay: Math.random() * 6,
+        duration: 10 + Math.random() * 8
+      })),
+    []
+  );
+
+  const floatingFlags = useMemo(
+    () =>
+      Array.from({ length: FLAG_COUNT }, (_, index) => ({
+        id: `flag-${index}`,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        delay: 2 + Math.random() * 6,
+        duration: 16 + Math.random() * 8
+      })),
+    []
+  );
+
   useEffect(() => {
     notifyVisit();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const setInitialPosition = () => {
-      const container = containerRef.current;
       const button = noButtonRef.current;
-      if (!container || !button) return;
+      const yesButton = yesButtonRef.current;
+      if (!button || !yesButton) return;
 
-      const rect = container.getBoundingClientRect();
       const buttonRect = button.getBoundingClientRect();
+      const yesRect = yesButton.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       const maxX = Math.max(
-        rect.width - buttonRect.width - NO_BUTTON_PADDING,
+        viewportWidth - buttonRect.width - NO_BUTTON_PADDING,
         NO_BUTTON_PADDING
       );
       const maxY = Math.max(
-        rect.height - buttonRect.height - NO_BUTTON_PADDING,
+        viewportHeight - buttonRect.height - NO_BUTTON_PADDING,
         NO_BUTTON_PADDING
       );
 
       setNoPosition({
-        x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, rect.width * 0.55)),
-        y: Math.min(maxY, NO_BUTTON_PADDING)
+        x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, yesRect.left)),
+        y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.bottom + 16))
       });
+      setNoReady(true);
     };
 
     setInitialPosition();
@@ -88,10 +120,9 @@ export default function Home() {
 
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
-      if (confirmed) return;
+      if (confirmed || !noReady) return;
       const button = noButtonRef.current;
-      const container = containerRef.current;
-      if (!button || !container) return;
+      if (!button) return;
 
       const buttonRect = button.getBoundingClientRect();
       const centerX = buttonRect.left + buttonRect.width / 2;
@@ -100,13 +131,14 @@ export default function Home() {
 
       if (distance > NO_BUTTON_THRESHOLD) return;
 
-      const containerRect = container.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       const maxX = Math.max(
-        containerRect.width - buttonRect.width - NO_BUTTON_PADDING,
+        viewportWidth - buttonRect.width - NO_BUTTON_PADDING,
         NO_BUTTON_PADDING
       );
       const maxY = Math.max(
-        containerRect.height - buttonRect.height - NO_BUTTON_PADDING,
+        viewportHeight - buttonRect.height - NO_BUTTON_PADDING,
         NO_BUTTON_PADDING
       );
 
@@ -120,7 +152,7 @@ export default function Home() {
 
     window.addEventListener("pointermove", handlePointerMove);
     return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [confirmed]);
+  }, [confirmed, noReady]);
 
   const handleYesClick = () => {
     setConfirmed(true);
@@ -154,29 +186,71 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-16 text-slate-100">
-      <div className="w-full max-w-3xl space-y-10 rounded-3xl border border-slate-800/70 bg-slate-900/60 p-8 shadow-soft backdrop-blur">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-rose-950 via-fuchsia-950 to-pink-950 px-4 py-16 text-pink-50">
+      {!disclaimerOpen && (
+        <div className="pointer-events-none absolute inset-0">
+          {floatingClips.map((clip) => (
+            <span
+              key={clip.id}
+              className="absolute animate-float text-pink-200/70"
+              style={{
+                left: `${clip.x}%`,
+                top: `${clip.y}%`,
+                fontSize: `${clip.size}px`,
+                animationDelay: `${clip.delay}s`,
+                animationDuration: `${clip.duration}s`
+              }}
+            >
+              🎀
+            </span>
+          ))}
+          {floatingFlags.map((flag) => (
+            <div
+              key={flag.id}
+              className="absolute animate-drift opacity-30"
+              style={{
+                left: `${flag.x}%`,
+                top: `${flag.y}%`,
+                animationDelay: `${flag.delay}s`,
+                animationDuration: `${flag.duration}s`
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flag-palestine" />
+                <div className="flag-circassia" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div
+        className={`relative w-full max-w-3xl space-y-10 rounded-[32px] border border-pink-300/40 bg-pink-950/40 p-8 shadow-[0_20px_60px_-30px_rgba(244,114,182,0.85)] backdrop-blur transition-opacity duration-300 ${
+          disclaimerOpen ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+      >
         <header className="space-y-4 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-pink-200/70">
             Invitation
           </p>
-          <h1 className="text-3xl font-semibold text-slate-50 sm:text-4xl">
+          <h1 className="text-3xl font-semibold text-pink-50 sm:text-4xl">
             Rama — would you like to join me for dinner?
           </h1>
-          <p className="text-base text-slate-300">
+          <p className="text-base text-pink-200/80">
             Low-pressure invite. Good food. Good company.
           </p>
+          <div className="mx-auto h-1 w-16 rounded-full bg-gradient-to-r from-pink-300 via-fuchsia-300 to-rose-300" />
         </header>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <section className="rounded-2xl border border-pink-300/30 bg-pink-950/50 p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-200/70">
             Details
           </h2>
-          <div className="mt-4 grid gap-3 text-lg text-slate-100 sm:grid-cols-3">
+          <div className="mt-4 grid gap-3 text-lg text-pink-50 sm:grid-cols-3">
             {detailItems.map((item) => (
               <div
                 key={item}
-                className="rounded-xl border border-slate-800/60 bg-slate-900/80 px-4 py-3 text-center shadow-sm"
+                className="rounded-xl border border-pink-300/20 bg-pink-900/50 px-4 py-3 text-center shadow-sm"
               >
                 {item}
               </div>
@@ -187,63 +261,67 @@ export default function Home() {
         <section className="space-y-4">
           {!confirmed && (
             <div
-              ref={containerRef}
-              className="relative flex min-h-[110px] items-center justify-center gap-6"
+              className="relative flex min-h-[140px] items-center justify-center gap-6"
             >
               <button
                 type="button"
                 onClick={handleYesClick}
-                className="z-10 inline-flex items-center justify-center rounded-full bg-emerald-500 px-8 py-4 text-base font-semibold text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                ref={yesButtonRef}
+                className="z-10 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-pink-300 via-rose-200 to-pink-200 px-10 py-4 text-base font-semibold text-pink-950 shadow-lg transition hover:-translate-y-0.5 hover:from-pink-200 hover:via-rose-100 hover:to-pink-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
               >
-                Yes, sounds good
+                Yes
               </button>
               <button
                 ref={noButtonRef}
                 type="button"
                 onClick={handleNoClick}
-                className="absolute inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-8 py-4 text-base font-semibold text-slate-200 shadow-md transition-transform duration-200 ease-out hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                className={`fixed z-20 inline-flex items-center justify-center rounded-full border border-pink-200/60 bg-pink-950/80 px-10 py-4 text-base font-semibold text-pink-100 shadow-[0_12px_30px_-18px_rgba(244,114,182,0.85)] transition-transform duration-200 ease-out hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200 ${
+                  noReady ? "opacity-100" : "opacity-0"
+                }`}
                 style={{
+                  top: 0,
+                  left: 0,
                   transform: `translate3d(${noPosition.x}px, ${noPosition.y}px, 0)`
                 }}
               >
-                No, not this time
+                No
               </button>
             </div>
           )}
 
           <div
-            className={`rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-left transition-all duration-300 ${
+            className={`rounded-2xl border border-pink-300/30 bg-pink-400/10 p-6 text-left transition-all duration-300 ${
               confirmed
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none -translate-y-4 opacity-0"
             }`}
             aria-live="polite"
           >
-            <p className="text-lg font-semibold text-emerald-200">
+            <p className="text-lg font-semibold text-pink-100">
               Perfect — it’s confirmed. See you Thursday at 8:00 PM.
             </p>
-            <p className="mt-1 text-sm text-emerald-100">
+            <p className="mt-1 text-sm text-pink-100/90">
               Moreira’s (Griffintown).
             </p>
-            <p className="mt-3 text-sm text-emerald-100/80">
+            <p className="mt-3 text-sm text-pink-100/70">
               If anything changes, you can suggest another time below.
             </p>
           </div>
         </section>
 
-        <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-6">
+        <section className="space-y-4 rounded-2xl border border-pink-300/30 bg-pink-950/50 p-6">
           <div>
-            <h2 className="text-xl font-semibold text-slate-50">
+            <h2 className="text-xl font-semibold text-pink-50">
               Suggest another option
             </h2>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-pink-200/70">
               If Thursday doesn’t work, propose a different date/time/place.
             </p>
           </div>
 
           <form onSubmit={handleSuggestionSubmit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="text-sm text-slate-300">
+              <label className="text-sm text-pink-100/90">
                 Date
                 <input
                   required
@@ -251,10 +329,10 @@ export default function Home() {
                   name="date"
                   value={suggestion.date}
                   onChange={handleSuggestionChange}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                  className="mt-2 w-full rounded-xl border border-pink-400/40 bg-pink-900/60 px-3 py-2 text-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
                 />
               </label>
-              <label className="text-sm text-slate-300">
+              <label className="text-sm text-pink-100/90">
                 Time
                 <input
                   required
@@ -262,10 +340,10 @@ export default function Home() {
                   name="time"
                   value={suggestion.time}
                   onChange={handleSuggestionChange}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                  className="mt-2 w-full rounded-xl border border-pink-400/40 bg-pink-900/60 px-3 py-2 text-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
                 />
               </label>
-              <label className="text-sm text-slate-300">
+              <label className="text-sm text-pink-100/90">
                 Place
                 <input
                   required
@@ -274,11 +352,11 @@ export default function Home() {
                   value={suggestion.place}
                   onChange={handleSuggestionChange}
                   placeholder="Restaurant or location"
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                  className="mt-2 w-full rounded-xl border border-pink-400/40 bg-pink-900/60 px-3 py-2 text-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
                 />
               </label>
             </div>
-            <label className="text-sm text-slate-300">
+            <label className="text-sm text-pink-100/90">
               Optional note
               <textarea
                 name="note"
@@ -286,20 +364,20 @@ export default function Home() {
                 onChange={handleSuggestionChange}
                 placeholder="Any extra detail to share"
                 rows={3}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+                className="mt-2 w-full rounded-xl border border-pink-400/40 bg-pink-900/60 px-3 py-2 text-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
               />
             </label>
 
             {suggestionError && (
-              <p className="text-sm text-amber-300">{suggestionError}</p>
+              <p className="text-sm text-amber-200">{suggestionError}</p>
             )}
             {suggestionMessage && (
-              <p className="text-sm text-emerald-200">{suggestionMessage}</p>
+              <p className="text-sm text-pink-100">{suggestionMessage}</p>
             )}
 
             <button
               type="submit"
-              className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              className="inline-flex items-center justify-center rounded-full border border-pink-300/50 bg-pink-100 px-6 py-3 text-sm font-semibold text-pink-900 transition hover:-translate-y-0.5 hover:bg-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
             >
               Send suggestion
             </button>
@@ -308,9 +386,9 @@ export default function Home() {
       </div>
 
       {noModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="max-w-2xl space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-soft">
-            <p className="text-lg text-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-pink-950/80 px-4 backdrop-blur-sm">
+          <div className="max-w-2xl space-y-4 rounded-2xl border border-pink-300/40 bg-pink-950 p-8 text-center shadow-soft">
+            <p className="text-lg text-pink-100">
               Oh no! It seems like your name is Rama Shapsough, and this button
               only works for people whose names are not ‘Rama Shapsough’. Better
               luck next time.
@@ -318,9 +396,29 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setNoModalOpen(false)}
-              className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-100 px-5 py-2 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              className="inline-flex items-center justify-center rounded-full border border-pink-300/50 bg-pink-100 px-5 py-2 text-sm font-semibold text-pink-900 transition hover:-translate-y-0.5 hover:bg-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
             >
               Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {disclaimerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-pink-950 px-4">
+          <div className="max-w-xl space-y-4 rounded-3xl border border-pink-300/40 bg-pink-900/70 p-8 text-center shadow-[0_30px_80px_-40px_rgba(244,114,182,0.9)]">
+            <p className="text-lg font-semibold text-pink-100">
+              Disclaimer
+            </p>
+            <p className="text-sm text-pink-200/80">
+              This website was coded by Omar to be sent to Rama.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDisclaimerOpen(false)}
+              className="inline-flex items-center justify-center rounded-full bg-pink-200 px-6 py-3 text-sm font-semibold text-pink-900 transition hover:-translate-y-0.5 hover:bg-pink-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
+            >
+              Accept &amp; enter
             </button>
           </div>
         </div>
