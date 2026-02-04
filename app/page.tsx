@@ -185,7 +185,26 @@ export default function Home() {
 
     setInitialPosition();
     window.addEventListener("resize", setInitialPosition);
-    return () => window.removeEventListener("resize", setInitialPosition);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            setInitialPosition();
+          });
+
+    if (resizeObserver) {
+      if (noButtonRef.current) {
+        resizeObserver.observe(noButtonRef.current);
+      }
+      if (yesButtonRef.current) {
+        resizeObserver.observe(yesButtonRef.current);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("resize", setInitialPosition);
+      resizeObserver?.disconnect();
+    };
   }, []);
 
   useEffect(() => {
