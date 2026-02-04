@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type Suggestion = {
   date: string;
@@ -46,6 +46,7 @@ export default function Home() {
   const yesButtonRef = useRef<HTMLButtonElement | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [noPosition, setNoPosition] = useState<Position>({ x: 0, y: 0 });
+  const [noReady, setNoReady] = useState(false);
   const [noModalOpen, setNoModalOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<Suggestion>(initialSuggestion);
   const [suggestionMessage, setSuggestionMessage] = useState("");
@@ -85,7 +86,7 @@ export default function Home() {
     notifyVisit();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const setInitialPosition = () => {
       const button = noButtonRef.current;
       const yesButton = yesButtonRef.current;
@@ -108,6 +109,7 @@ export default function Home() {
         x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, yesRect.right + 24)),
         y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.top))
       });
+      setNoReady(true);
     };
 
     setInitialPosition();
@@ -265,8 +267,12 @@ export default function Home() {
                 ref={noButtonRef}
                 type="button"
                 onClick={handleNoClick}
-                className="fixed z-20 inline-flex items-center justify-center rounded-full border border-pink-300/60 bg-pink-900/70 px-8 py-4 text-base font-semibold text-pink-100 shadow-md transition-transform duration-200 ease-out hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
+                className={`fixed z-20 inline-flex items-center justify-center rounded-full border border-pink-300/60 bg-pink-900/70 px-8 py-4 text-base font-semibold text-pink-100 shadow-md transition-transform duration-200 ease-out hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200 ${
+                  noReady ? "opacity-100" : "opacity-0"
+                }`}
                 style={{
+                  top: 0,
+                  left: 0,
                   transform: `translate3d(${noPosition.x}px, ${noPosition.y}px, 0)`
                 }}
               >
