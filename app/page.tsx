@@ -53,6 +53,7 @@ export default function Home() {
   const [suggestion, setSuggestion] = useState<Suggestion>(initialSuggestion);
   const [suggestionMessage, setSuggestionMessage] = useState("");
   const [suggestionError, setSuggestionError] = useState("");
+  const noHasMovedRef = useRef(false);
 
   const detailItems = useMemo(
     () => ["Thursday, February 12", "8:00 PM", "Moreira’s — Griffintown"],
