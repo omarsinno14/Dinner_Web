@@ -9,3 +9,82 @@
 body {
   @apply bg-slate-950 text-slate-50 antialiased;
 }
+
+.animate-float {
+  animation: float 12s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 18s ease-in-out infinite;
+}
+
+.flag-palestine,
+.flag-circassia {
+  width: 26px;
+  height: 16px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.flag-palestine {
+  background: linear-gradient(
+      135deg,
+      #c1121f 0%,
+      #c1121f 50%,
+      transparent 50%
+    ),
+    linear-gradient(
+      180deg,
+      #000000 0%,
+      #000000 33%,
+      #ffffff 33%,
+      #ffffff 66%,
+      #007a3d 66%,
+      #007a3d 100%
+    );
+}
+
+.flag-circassia {
+  position: relative;
+  background: #0f6b3d;
+  overflow: hidden;
+}
+
+.flag-circassia::before,
+.flag-circassia::after {
+  content: "";
+  position: absolute;
+  inset: 2px 4px;
+  background:
+    radial-gradient(circle, #f8e08e 55%, transparent 56%) 0 0 / 6px 6px,
+    radial-gradient(circle, #f8e08e 55%, transparent 56%) 100% 0 / 6px 6px,
+    radial-gradient(circle, #f8e08e 55%, transparent 56%) 0 100% / 6px 6px,
+    radial-gradient(circle, #f8e08e 55%, transparent 56%) 100% 100% / 6px 6px;
+  opacity: 0.9;
+}
+
+.flag-circassia::after {
+  inset: 5px 8px;
+  background: linear-gradient(90deg, transparent 42%, #f8e08e 42% 58%, transparent 58%);
+  opacity: 0.7;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(10px, -16px, 0);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-3deg);
+  }
+  50% {
+    transform: translate3d(-14px, 18px, 0) rotate(3deg);
+  }
+}
