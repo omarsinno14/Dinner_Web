@@ -14,7 +14,7 @@ type Position = {
   y: number;
 };
 
-const NO_BUTTON_THRESHOLD = 320;
+const NO_BUTTON_THRESHOLD = 20;
 const NO_BUTTON_PADDING = 24;
 const BACKGROUND_CLIP_COUNT = 14;
 const FLAG_COUNT = 2;
@@ -48,6 +48,7 @@ export default function Home() {
   const [noPosition, setNoPosition] = useState<Position>({ x: 0, y: 0 });
   const [noReady, setNoReady] = useState(false);
   const [noModalOpen, setNoModalOpen] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(true);
   const [suggestion, setSuggestion] = useState<Suggestion>(initialSuggestion);
   const [suggestionMessage, setSuggestionMessage] = useState("");
   const [suggestionError, setSuggestionError] = useState("");
@@ -106,8 +107,8 @@ export default function Home() {
       );
 
       setNoPosition({
-        x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, yesRect.right + 24)),
-        y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.top))
+        x: Math.min(maxX, Math.max(NO_BUTTON_PADDING, yesRect.left)),
+        y: Math.min(maxY, Math.max(NO_BUTTON_PADDING, yesRect.bottom + 16))
       });
       setNoReady(true);
     };
@@ -119,7 +120,7 @@ export default function Home() {
 
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
-      if (confirmed) return;
+      if (confirmed || !noReady) return;
       const button = noButtonRef.current;
       if (!button) return;
 
@@ -151,7 +152,7 @@ export default function Home() {
 
     window.addEventListener("pointermove", handlePointerMove);
     return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [confirmed]);
+  }, [confirmed, noReady]);
 
   const handleYesClick = () => {
     setConfirmed(true);
@@ -186,42 +187,48 @@ export default function Home() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-950 via-fuchsia-950 to-slate-950 px-4 py-16 text-pink-50">
-      <div className="pointer-events-none absolute inset-0">
-        {floatingClips.map((clip) => (
-          <span
-            key={clip.id}
-            className="absolute animate-float text-pink-200/70"
-            style={{
-              left: `${clip.x}%`,
-              top: `${clip.y}%`,
-              fontSize: `${clip.size}px`,
-              animationDelay: `${clip.delay}s`,
-              animationDuration: `${clip.duration}s`
-            }}
-          >
-            🎀
-          </span>
-        ))}
-        {floatingFlags.map((flag) => (
-          <div
-            key={flag.id}
-            className="absolute animate-drift opacity-30"
-            style={{
-              left: `${flag.x}%`,
-              top: `${flag.y}%`,
-              animationDelay: `${flag.delay}s`,
-              animationDuration: `${flag.duration}s`
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flag-palestine" />
-              <div className="flag-circassia" />
+      {!disclaimerOpen && (
+        <div className="pointer-events-none absolute inset-0">
+          {floatingClips.map((clip) => (
+            <span
+              key={clip.id}
+              className="absolute animate-float text-pink-200/70"
+              style={{
+                left: `${clip.x}%`,
+                top: `${clip.y}%`,
+                fontSize: `${clip.size}px`,
+                animationDelay: `${clip.delay}s`,
+                animationDuration: `${clip.duration}s`
+              }}
+            >
+              🎀
+            </span>
+          ))}
+          {floatingFlags.map((flag) => (
+            <div
+              key={flag.id}
+              className="absolute animate-drift opacity-30"
+              style={{
+                left: `${flag.x}%`,
+                top: `${flag.y}%`,
+                animationDelay: `${flag.delay}s`,
+                animationDuration: `${flag.duration}s`
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flag-palestine" />
+                <div className="flag-circassia" />
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      <div className="relative w-full max-w-3xl space-y-10 rounded-3xl border border-pink-500/40 bg-pink-950/40 p-8 shadow-soft backdrop-blur">
+      <div
+        className={`relative w-full max-w-3xl space-y-10 rounded-3xl border border-pink-500/40 bg-pink-950/40 p-8 shadow-soft backdrop-blur transition-opacity duration-300 ${
+          disclaimerOpen ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+      >
         <header className="space-y-4 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-pink-200/70">
             Invitation
@@ -261,7 +268,7 @@ export default function Home() {
                 ref={yesButtonRef}
                 className="z-10 inline-flex items-center justify-center rounded-full bg-pink-400 px-8 py-4 text-base font-semibold text-pink-950 shadow-lg transition hover:-translate-y-0.5 hover:bg-pink-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
               >
-                Yes, sounds good
+                yes
               </button>
               <button
                 ref={noButtonRef}
@@ -276,7 +283,7 @@ export default function Home() {
                   transform: `translate3d(${noPosition.x}px, ${noPosition.y}px, 0)`
                 }}
               >
-                No, not this time
+                now only
               </button>
             </div>
           )}
@@ -391,6 +398,26 @@ export default function Home() {
               className="inline-flex items-center justify-center rounded-full border border-pink-400/40 bg-pink-100 px-5 py-2 text-sm font-semibold text-pink-900 transition hover:-translate-y-0.5 hover:bg-pink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
             >
               Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {disclaimerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-pink-950 px-4">
+          <div className="max-w-xl space-y-4 rounded-3xl border border-pink-400/40 bg-pink-900/70 p-8 text-center shadow-soft">
+            <p className="text-lg font-semibold text-pink-100">
+              Disclaimer
+            </p>
+            <p className="text-sm text-pink-200/80">
+              This website was coded by Omar to be sent to Rama.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDisclaimerOpen(false)}
+              className="inline-flex items-center justify-center rounded-full bg-pink-200 px-6 py-3 text-sm font-semibold text-pink-900 transition hover:-translate-y-0.5 hover:bg-pink-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
+            >
+              Accept &amp; enter
             </button>
           </div>
         </div>
