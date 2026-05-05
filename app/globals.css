@@ -11,3 +11,14 @@ body {
   color: #1d1d1f;
   background: #f5f4f2;
 }
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
