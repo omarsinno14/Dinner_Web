@@ -42,12 +42,12 @@ export const SITE_CONFIG = {
   },
   messageLabel: "Leave Omar a message, threat, complaint, or emotional damage report.",
   messagePlaceholder: "Write something dramatic here…",
-  noMessages: [
-    "You cannot pick this because your name is Dalia 🙃",
-    "Still no.",
-    "Dalia stop.",
-    "This button has resigned."
-  ],
+  noMessages: ["Stop", "Denied", "Nope"],
+  locationFlipMessages: {
+    1: "Nevermind ma ha ellik",
+    2: "Sike",
+    3: "You’ll know then"
+  },
   colorOptions: [
     { name: "Violet", hex: "#D8C7F2" },
     { name: "Blue", hex: "#C9DCF7" },
