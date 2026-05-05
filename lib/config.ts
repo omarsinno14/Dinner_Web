@@ -14,7 +14,7 @@ export const SITE_CONFIG = {
     color: "Okk Dalia, pick a color eza bet ride:",
     inviteLine1: "Metel ma elna, Dinner on Thursday May 7th Belel",
     inviteLine2: "Please say yes or no.",
-    loading1: "Checking if Dalia is being stupid a smart...",
+    loading1: "Checking if Dalia is being stupid or smart...",
     loading2: "Dalia picked yes, hence smart",
     time: "Good Choice, now please pick a time",
     forcedTime: "Aslan mesh 3a zaw2ik, el hajez 8:30 😄",
