@@ -1,24 +1,32 @@
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
 import { SITE_CONFIG } from "../../../lib/config";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || "Dinner Invite <onboarding@resend.dev>",
-        to: SITE_CONFIG.recipientEmail,
-        subject: SITE_CONFIG.emailSubject,
-        text: `Dalia dinner website submission\n\nName: ${body.enteredName}\nSelected color: ${body.selectedColorName} (${body.selectedColorHex})\nFake time selected: ${body.fakeTimeSelected}\nActual dinner time: ${body.actualDinnerTime}\nLocation card number: ${body.locationCardNumber}\nAccepted checkbox: ${body.requiredCheckboxAccepted}\nMessage: ${body.writtenMessage}\nTimestamp: ${body.timestamp}`
-      })
+    const {
+      enteredName,
+      selectedColorName,
+      selectedColorHex,
+      selectedFakeTime,
+      actualTime,
+      selectedLocationCard,
+      acceptedTerms,
+      message,
+      timestamp
+    } = body;
+
+    const { error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "Dinner Invite <onboarding@resend.dev>",
+      to: SITE_CONFIG.recipientEmail,
+      subject: SITE_CONFIG.emailSubject,
+      text: `Dalia dinner website submission\n\nName: ${enteredName}\nColor picked: ${selectedColorName} (${selectedColorHex})\nFake time selected: ${selectedFakeTime}\nActual time: ${actualTime}\nSelected location card number: ${selectedLocationCard}\nAccepted terms: ${acceptedTerms}\nMessage: ${message}\nTimestamp: ${timestamp}`
     });
 
-    if (!response.ok) {
+    if (error) {
       return NextResponse.json({ success: false, error: "Email provider error" }, { status: 502 });
     }
 
